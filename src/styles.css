@@ -37,7 +37,7 @@ button:disabled {
 .app {
   width: 430px;
   min-height: 520px;
-  margin: 20px;
+  padding: 20px;
 }
 header {
   display: flex;
