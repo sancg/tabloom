@@ -1,6 +1,6 @@
-# Tab Audio Studio
+# Tabloom
 
-A React + TypeScript Manifest V3 extension that records the active Chrome/Chromium tab's audio, lets users trim and remove quiet sections, and downloads an MP3.
+A Chrome extension that records the active tab's audio, lets users trim and remove silent sections, and download it as MP3.
 
 ## Run it
 
@@ -10,7 +10,7 @@ A React + TypeScript Manifest V3 extension that records the active Chrome/Chromi
 4. Pin the extension, open it on an audible tab, and choose **Start recording**. There is no sharing picker: audio only is captured from the tab that was active when the action was invoked.
 5. You can close the popup while recording. Reopen it to pause, resume, finish, or cancel. Finished recordings are kept locally in IndexedDB until the next recording replaces them.
 
-## Design notes
+## Agent Notes 🤖
 
 - No runtime WebExtension polyfill is used. The project uses Chrome's native `chrome.*` global and `@types/chrome`. Safari and Firefox provide a native `browser.*` global, but Chrome does not; therefore there is no native `browser` replacement that works unchanged in all three browsers.
 - Direct capture is intentionally implemented with `chrome.tabCapture.getMediaStreamId()` and audio-only `getUserMedia()` constraints. Chrome requires the `tabCapture` permission and a user invocation, but does not show a source picker. The extension reconnects the capture stream to the audio destination so playback continues during recording.
