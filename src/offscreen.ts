@@ -102,6 +102,12 @@ function stopRecording(discard: boolean) {
   recorder.stop();
 }
 
+async function deleteSavedRecording() {
+  if (recorder?.state === 'recording' || recorder?.state === 'paused') throw new Error('A recording is still in progress.');
+  await deleteRecording();
+  report({ status: 'idle', elapsedMs: 0 });
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.target !== 'offscreen') return undefined;
   const task = async () => {
@@ -110,6 +116,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'OFFSCREEN_RESUME') resumeRecording();
     if (message.type === 'OFFSCREEN_FINISH') stopRecording(false);
     if (message.type === 'OFFSCREEN_CANCEL') stopRecording(true);
+    if (message.type === 'OFFSCREEN_DELETE_SAVED') await deleteSavedRecording();
     return state;
   };
   void task().then((value) => sendResponse({ ok: true, value })).catch((error: unknown) => sendResponse({ ok: false, error: error instanceof Error ? error.message : 'Recording action failed.' }));

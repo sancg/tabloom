@@ -69,6 +69,16 @@ async function commandRecorder(type: 'OFFSCREEN_PAUSE' | 'OFFSCREEN_RESUME' | 'O
   await sendToOffscreen({ type });
 }
 
+async function discardSavedRecording() {
+  const previous = await currentState();
+  if (['starting', 'recording', 'paused', 'processing'].includes(previous.status)) throw new Error('Finish or cancel the active recording before discarding it.');
+  await ensureOffscreenDocument();
+  await sendToOffscreen({ type: 'OFFSCREEN_DELETE_SAVED' });
+  const cleared = { ...emptyRecordingState, revision: previous.revision + 1 };
+  await storeState(cleared);
+  return cleared;
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'OFFSCREEN_STATE') {
     void storeState(message.state as RecordingState).finally(() => sendResponse({ ok: true }));
@@ -81,6 +91,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'POPUP_RESUME') { await commandRecorder('OFFSCREEN_RESUME'); return currentState(); }
     if (message.type === 'POPUP_FINISH') { await commandRecorder('OFFSCREEN_FINISH'); return currentState(); }
     if (message.type === 'POPUP_CANCEL') { await commandRecorder('OFFSCREEN_CANCEL'); return currentState(); }
+    if (message.type === 'POPUP_DISCARD_SAVED') return discardSavedRecording();
     return undefined;
   };
   if (!String(message.type ?? '').startsWith('POPUP_')) return undefined;

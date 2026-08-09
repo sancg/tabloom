@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createRoot } from 'react-dom/client';
+import { PauseIcon, PlayIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/react/24/solid';
 import { audioUrl, cropBuffer, decodeAudio, encodeMp3, formatTime, removeSilentAudio, type TimeRange } from './audio';
 import { emptyRecordingState, type RecordingState } from './messages';
 import { loadRecording } from './recording-store';
@@ -61,6 +62,45 @@ function WaveformTrim({ buffer, range, onRangeChange }: { buffer: AudioBuffer; r
     <div className="trim-selection" style={{ left: `${startPercent}%`, width: `${endPercent - startPercent}%` }} />
     <div className="trim-handle start" data-edge="start" style={{ left: `${startPercent}%` }} aria-label={`Trim start at ${formatTime(range.start)}`} />
     <div className="trim-handle end" data-edge="end" style={{ left: `${endPercent}%` }} aria-label={`Trim end at ${formatTime(range.end)}`} />
+  </div>;
+}
+
+function WaveformPlayback({ source, duration }: { source: string; duration: number }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause(); audio.currentTime = 0; setPlaying(false); setCurrentTime(0);
+  }, [source]);
+  useEffect(() => () => audioRef.current?.pause(), []);
+
+  async function togglePlayback() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      try { await audio.play(); } catch { setPlaying(false); }
+    } else audio.pause();
+  }
+  function seek(nextTime: number) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = nextTime; setCurrentTime(nextTime);
+  }
+  function toggleMute() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.muted = !audio.muted; setMuted(audio.muted);
+  }
+  return <div className="waveform-playback">
+    <audio ref={audioRef} src={source} preload="metadata" onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setCurrentTime(0); }} />
+    <button className="round-control" onClick={() => void togglePlayback()} aria-label={playing ? 'Pause preview' : 'Play preview'}>{playing ? <PauseIcon /> : <PlayIcon />}</button>
+    <span className="playback-time">{formatTime(currentTime)} <span>/ {formatTime(duration)}</span></span>
+    <input className="playback-scrubber" aria-label="Preview position" type="range" min="0" max={duration || 0} step="0.01" value={Math.min(currentTime, duration)} onChange={(event) => seek(Number(event.target.value))} />
+    <button className="round-control muted" onClick={toggleMute} aria-label={muted ? 'Unmute preview' : 'Mute preview'}>{muted ? <SpeakerXMarkIcon /> : <SpeakerWaveIcon />}</button>
   </div>;
 }
 
@@ -138,14 +178,17 @@ function App() {
     if (!source) return;
     setEdited(source); setRange({ start: 0, end: source.duration }); setMessage('Edits and trim range reset to the original recording.');
   }
-  function exportMp3() {
+  async function exportMp3() {
     if (!edited) return;
     setExporting(true); setError(null);
     try {
       const mp3 = encodeMp3(edited, settings.bitrate);
       const href = URL.createObjectURL(mp3); const link = document.createElement('a');
       link.href = href; link.download = `tab-audio-${new Date().toISOString().replace(/[:.]/g, '-')}.mp3`; link.click();
-      URL.revokeObjectURL(href); setMessage(`Downloaded MP3 at ${settings.bitrate} kbps.`);
+      window.setTimeout(() => URL.revokeObjectURL(href), 1_000);
+      const cleared = await popupCommand<RecordingState>('POPUP_DISCARD_SAVED');
+      setRecording(cleared); setSource(null); setEdited(null); setRange({ start: 0, end: 0 }); setScreen('record');
+      setMessage(`Downloaded MP3 at ${settings.bitrate} kbps. Ready for a new recording.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'MP3 export failed.'); }
     finally { setExporting(false); }
   }
