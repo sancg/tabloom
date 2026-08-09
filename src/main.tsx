@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
+  Cog6ToothIcon,
+  MusicalNoteIcon,
   PauseIcon,
   PlayIcon,
+  ScissorsIcon,
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
 } from '@heroicons/react/24/solid';
@@ -186,13 +189,7 @@ function WaveformPlayback({ source, duration }: { source: string; duration: numb
           setCurrentTime(0);
         }}
       />
-      <button
-        className='round-control'
-        onClick={() => void togglePlayback()}
-        aria-label={playing ? 'Pause preview' : 'Play preview'}
-      >
-        {playing ? <PauseIcon /> : <PlayIcon />}
-      </button>
+
       <span className='playback-time'>
         {formatTime(currentTime)} <span>/ {formatTime(duration)}</span>
       </span>
@@ -207,12 +204,19 @@ function WaveformPlayback({ source, duration }: { source: string; duration: numb
         onChange={(event) => seek(Number(event.target.value))}
       />
       <button
+        className='round-control'
+        onClick={() => void togglePlayback()}
+        aria-label={playing ? 'Pause preview' : 'Play preview'}
+      >
+        {playing ? <PauseIcon width={20} /> : <PlayIcon width={20} />}
+      </button>
+      {/* <button
         className='round-control muted'
         onClick={toggleMute}
         aria-label={muted ? 'Unmute preview' : 'Mute preview'}
       >
         {muted ? <SpeakerXMarkIcon /> : <SpeakerWaveIcon />}
-      </button>
+      </button> */}
     </div>
   );
 }
@@ -248,6 +252,7 @@ function App() {
       /* The first popup load may race the service worker startup. */
     }
   }
+
   useEffect(() => {
     chrome.storage.local.get('settings').then(({ settings: saved }) => {
       if (saved) setSettings({ ...defaultSettings, ...(saved as Partial<Settings>) });
@@ -307,8 +312,10 @@ function App() {
         loadedRevisionRef.current = -1;
       }
       const state = await popupCommand<RecordingState>(type);
+      console.log({ state, loadedRevisionRef });
       setRecording(state);
       await refreshRecordingState();
+      //TODO: improve UI state messages
       setMessage(
         type === 'POPUP_START'
           ? 'Starting active-tab audio capture…'
@@ -316,6 +323,10 @@ function App() {
             ? 'Cancelling recording…'
             : 'Recorder updated.',
       );
+
+      if (type === 'POPUP_CANCEL') {
+        loadedRevisionRef.current = 0;
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Recorder action failed.');
     }
@@ -323,7 +334,9 @@ function App() {
   function applyTrim() {
     if (!source) return;
     const result = cropBuffer(source, range);
+    console.log({ source, result, edited, range });
     setEdited(result);
+    setRange({ start: 0, end: result.duration });
     setMessage(`Trimmed to ${formatTime(result.duration)}.`);
   }
   function removeSilence() {
@@ -338,6 +351,8 @@ function App() {
     setRange({ start: 0, end: source.duration });
     setMessage('Edits and trim range reset to the original recording.');
   }
+
+  // Downloading the audio file
   async function exportMp3() {
     if (!edited) return;
     setExporting(true);
@@ -368,6 +383,7 @@ function App() {
     recording.status,
   );
   const duration = source?.duration ?? 0;
+
   return (
     <main className='app'>
       <header>
@@ -381,7 +397,7 @@ function App() {
                 : 'Settings'}
           </h1>
         </div>
-        <span className={isCapturing ? 'status recording' : 'status'}>
+        {/* <span className={isCapturing ? 'status recording' : 'status'}>
           {recording.status === 'recording'
             ? '● REC'
             : recording.status === 'paused'
@@ -389,7 +405,14 @@ function App() {
               : recording.status === 'processing'
                 ? 'SAVING'
                 : 'READY'}
-        </span>
+        </span> */}
+        <button
+          id='settings'
+          className={`${screen === 'settings' ? 'active' : ''}`}
+          onClick={() => setScreen('settings')}
+        >
+          <Cog6ToothIcon width={20} />
+        </button>
       </header>
       <nav aria-label='Extension screens'>
         <button
@@ -405,12 +428,12 @@ function App() {
         >
           Editor
         </button>
-        <button
+        {/* <button
           className={screen === 'settings' ? 'active' : ''}
           onClick={() => setScreen('settings')}
         >
           Settings
-        </button>
+        </button> */}
       </nav>
       {error && (
         <p className='error' role='alert'>
@@ -458,7 +481,7 @@ function App() {
                       ✓ Finish recording
                     </button>
                     <button
-                      className='cancel-button'
+                      className='cancel-button danger'
                       onClick={() => void controlRecorder('POPUP_CANCEL')}
                     >
                       × Cancel
@@ -470,13 +493,12 @@ function App() {
           ) : (
             <>
               <div className='record-visual'>
-                <span>♫</span>
+                <span>
+                  <MusicalNoteIcon width={30} />
+                </span>
               </div>
-              <h2>Capture current-tab audio</h2>
-              <p>
-                Starts immediately after you click—no screen sharing and no tab picker. You can
-                safely close this popup while recording.
-              </p>
+              <h2>Capture Audio</h2>
+              <p>You can safely close this popup while recording.</p>
               <button className='primary' onClick={() => void controlRecorder('POPUP_START')}>
                 Start recording
               </button>
@@ -486,6 +508,46 @@ function App() {
         </section>
       )}
       {screen === 'editor' && source && edited && (
+        <section className='panel editor'>
+          <fieldset className='trim-editor'>
+            <legend>Audio Trimming</legend>
+            <WaveformPlayback source={previewUrl ?? ''} duration={edited.duration} />
+            <WaveformTrim buffer={edited} range={range} onRangeChange={setRange} />
+
+            <div className='trim-times'>
+              <span>{formatTime(range.start)}</span>
+              <span>{formatTime(range.end)}</span>
+            </div>
+            <div className='trim-actions'>
+              <button className='secondary' onClick={applyTrim}>
+                <ScissorsIcon width={20} />
+              </button>
+            </div>
+          </fieldset>
+          {/* //FIXME: Also update the range when removing silence to match the UI */}
+          <fieldset>
+            <legend>Silence cleanup</legend>
+            <p>
+              Deletes quiet sections at least {settings.minimumSilenceMs} ms long (below{' '}
+              {settings.silenceDb} dB).
+            </p>
+            <button className='secondary' onClick={removeSilence}>
+              Delete silent parts
+            </button>
+          </fieldset>
+          <div className='editor-actions'>
+            <button className='text-button' onClick={resetEdits}>
+              Reset edits
+            </button>
+            <button className='primary' disabled={exporting} onClick={() => void exportMp3()}>
+              {exporting ? 'Encoding MP3…' : `Export MP3 (${settings.bitrate} kbps)`}
+            </button>
+          </div>
+          <p className='hint'>{message}</p>
+        </section>
+      )}
+
+      {/* {screen === 'editor' && source && edited && (
         <section className='panel editor'>
           <audio controls src={previewUrl ?? undefined} />
           <div className='time-row'>
@@ -531,7 +593,7 @@ function App() {
           </div>
           <p className='hint'>{message}</p>
         </section>
-      )}
+      )} */}
       {screen === 'settings' && (
         <section className='panel settings'>
           <label>
