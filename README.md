@@ -8,11 +8,14 @@ A React + TypeScript Manifest V3 extension that records the active Chrome/Chromi
 2. Run `npm run build`; the loadable extension is created in `dist/`.
 3. In Chrome, open `chrome://extensions`, enable Developer mode, select **Load unpacked**, and choose `dist/`.
 4. Pin the extension, open it on an audible tab, and choose **Start recording**. There is no sharing picker: audio only is captured from the tab that was active when the action was invoked.
+5. You can close the popup while recording. Reopen it to pause, resume, finish, or cancel. Finished recordings are kept locally in IndexedDB until the next recording replaces them.
 
 ## Design notes
 
 - No runtime WebExtension polyfill is used. The project uses Chrome's native `chrome.*` global and `@types/chrome`. Safari and Firefox provide a native `browser.*` global, but Chrome does not; therefore there is no native `browser` replacement that works unchanged in all three browsers.
-- Direct capture is intentionally implemented with `chrome.tabCapture.capture({ audio: true, video: false })`. Chrome requires the `tabCapture` permission and a user invocation, but does not show a source picker. The extension reconnects the capture stream to the audio destination so playback continues during recording.
+- Direct capture is intentionally implemented with `chrome.tabCapture.getMediaStreamId()` and audio-only `getUserMedia()` constraints. Chrome requires the `tabCapture` permission and a user invocation, but does not show a source picker. The extension reconnects the capture stream to the audio destination so playback continues during recording.
+- The recording runs in an MV3 offscreen document, not the popup. The service worker obtains a `tabCapture` stream ID and the offscreen document owns `MediaRecorder`, so popup lifecycle no longer affects capture.
+- MP3 export uses `@breezystack/lamejs`, the maintained ESM/type-enabled fork. It replaces the legacy `lamejs` package, which has the known bundler error `MPEGMode is not defined`.
 - Safari WebExtensions do not expose this Chrome-specific `tabCapture` feature, so the exact no-picker, automatically-selected-tab requirement cannot be fulfilled in Safari with WebExtension APIs alone. The UI reports this limitation instead of falling back to screen sharing. A Safari version would require an approved native macOS companion using Apple capture APIs, which is a separate product architecture.
 - The source recording is decoded with Web Audio, so trimming and silence deletion operate on PCM audio. Export uses LAME at a configurable bitrate up to 320 kbps, the MP3 maximum.
 - Recordings stay in memory and are not uploaded or persisted. Keep the popup open while recording; closing it ends the extension page and may end the session.

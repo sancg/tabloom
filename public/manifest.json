@@ -11,7 +11,7 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["activeTab", "storage", "tabCapture", "tabs"],
+  "permissions": ["activeTab", "offscreen", "storage", "tabCapture", "tabs"],
   "browser_specific_settings": {
     "gecko": {
       "id": "tab-audio-studio@example.com",

@@ -1,4 +1,4 @@
-import lamejs from 'lamejs';
+import * as lame from '@breezystack/lamejs';
 
 export interface TimeRange {
   start: number;
@@ -95,7 +95,7 @@ function toInt16(input: Float32Array, start: number, length: number) {
 
 export function encodeMp3(buffer: AudioBuffer, bitrate = 320): Blob {
   const channels = buffer.numberOfChannels > 1 ? 2 : 1;
-  const encoder = new lamejs.Mp3Encoder(channels, buffer.sampleRate, bitrate);
+  const encoder = new lame.Mp3Encoder(channels, buffer.sampleRate, bitrate);
   const left = buffer.getChannelData(0);
   const right = channels === 2 ? buffer.getChannelData(1) : undefined;
   const chunks: Uint8Array[] = [];
