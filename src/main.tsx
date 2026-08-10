@@ -6,9 +6,8 @@ import {
   PauseIcon,
   PlayIcon,
   ScissorsIcon,
-  SpeakerWaveIcon,
-  SpeakerXMarkIcon,
 } from '@heroicons/react/24/solid';
+
 import {
   audioUrl,
   cropBuffer,
@@ -61,7 +60,7 @@ function WaveformTrim({
     const stride = Math.max(1, Math.floor(samples.length / width));
     context.clearRect(0, 0, width, height);
     context.strokeStyle = '#7251df';
-    context.lineWidth = 1.2;
+    context.lineWidth = 1.4;
     context.beginPath();
     for (let x = 0; x < width; x += 1) {
       let peak = 0;
@@ -331,18 +330,21 @@ function App() {
       setError(caught instanceof Error ? caught.message : 'Recorder action failed.');
     }
   }
+
+  //IMPROVE: Not sure if taking the 3 actions into one function (setEdit, Range, Message).
   function applyTrim() {
     if (!source) return;
     const result = cropBuffer(source, range);
     console.log({ source, result, edited, range });
     setEdited(result);
-    setRange({ start: 0, end: result.duration });
+    setRange({ start: 0, end: result.duration }); // Fixes the control wave form when trim applied
     setMessage(`Trimmed to ${formatTime(result.duration)}.`);
   }
   function removeSilence() {
     if (!edited) return;
     const result = removeSilentAudio(edited, settings.silenceDb, settings.minimumSilenceMs);
     setEdited(result);
+    setRange({ start: 0, end: result.duration });
     setMessage(`Removed long silent passages. New length: ${formatTime(result.duration)}.`);
   }
   function resetEdits() {
@@ -351,6 +353,7 @@ function App() {
     setRange({ start: 0, end: source.duration });
     setMessage('Edits and trim range reset to the original recording.');
   }
+  // ---------------
 
   // Downloading the audio file
   async function exportMp3() {
@@ -547,53 +550,6 @@ function App() {
         </section>
       )}
 
-      {/* {screen === 'editor' && source && edited && (
-        <section className='panel editor'>
-          <audio controls src={previewUrl ?? undefined} />
-          <div className='time-row'>
-            <span>{formatTime(edited.duration)}</span>
-            <span>Preview</span>
-          </div>
-          <fieldset className='trim-editor'>
-            <legend>Trim on the waveform</legend>
-            <WaveformTrim buffer={source} range={range} onRangeChange={setRange} />
-            <div className='trim-times'>
-              <span>Start {formatTime(range.start)}</span>
-              <span>End {formatTime(range.end)}</span>
-            </div>
-            <div className='trim-actions'>
-              <button
-                className='text-button'
-                onClick={() => setRange({ start: 0, end: duration })}
-              >
-                Reset range
-              </button>
-              <button className='secondary' onClick={applyTrim}>
-                ✂ Apply trim
-              </button>
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend>Silence cleanup</legend>
-            <p>
-              Deletes quiet sections at least {settings.minimumSilenceMs} ms long (below{' '}
-              {settings.silenceDb} dB).
-            </p>
-            <button className='secondary' onClick={removeSilence}>
-              Delete silent parts
-            </button>
-          </fieldset>
-          <div className='editor-actions'>
-            <button className='text-button' onClick={resetEdits}>
-              Reset edits
-            </button>
-            <button className='primary' disabled={exporting} onClick={exportMp3}>
-              {exporting ? 'Encoding MP3…' : `Export MP3 (${settings.bitrate} kbps)`}
-            </button>
-          </div>
-          <p className='hint'>{message}</p>
-        </section>
-      )} */}
       {screen === 'settings' && (
         <section className='panel settings'>
           <label>

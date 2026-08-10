@@ -34,9 +34,8 @@ button:disabled {
   opacity: 0.5;
 }
 .app {
-  width: 430px;
-  min-height: 520px;
-  padding: 20px;
+  /* width: 430px; */
+  padding: 10px 10px 5px;
 }
 header {
   display: flex;
